@@ -1,0 +1,13 @@
+.support-container.card {
+    background-color: transparent;
+    border: none !important;
+}
+.support-container.card .card-header {
+    color: var(--white);
+    border-bottom: 1px solid var(--mergin-color);
+}
+.support-container.card .card-header p {
+    margin: 0 !important;
+    font-size: 15px;
+    line-height: 20px;
+}

@@ -1,0 +1,867 @@
+@extends('Frontend.navber.navber')
+
+
+@section('content')
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="post-container">
+                <div class='introBar'>
+                    <div class="post">
+                        @if (Auth::guard('user')->user())
+                            <a href="{{ route('profile') }}">
+                                @if (Auth::guard('user')->user()->photo == null)
+                                    <img id="blah" class="user-profile" src="{{ Avatar::create(Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname)->toBase64() }}" />
+                                @else
+                                    <img id="blah" class="user-profile" src="{{ asset('upload/users') }}/{{ Auth::guard('user')->user()->photo }}" alt="" />
+                                @endif
+                            </a>
+                        @endif
+                        <input type="text" placeholder="Do you want to write somthing...." />
+                    </div>
+                    <div class="story">
+                        <i class="fa-solid fa-film"></i>
+                        <h6>Create Story</h6>
+                    </div>
+                </div>
+
+                @foreach ($posts as $post)
+                    <div class='post-main'>
+                        <div class="post-head">
+                            @if ($post->rel_to_user->photo == null)
+                                <img id="blah" class="user-profile" src="{{ Avatar::create($post->rel_to_user->fname.' '.$post->rel_to_user->lname)->toBase64() }}" />
+                            @else
+                                <img src="{{ asset('upload/users') }}/{{ $post->rel_to_user->photo }}" alt="" />
+                            @endif
+                            <div class="post-name-time">
+                                <h4>{{ $post->rel_to_user->fname }} {{ $post->rel_to_user->lname }}
+                                    @if (Auth::guard('user')->user())
+                                        <span class="commonFollowFollowingStatus{{ $post->rel_to_user->id }}" onclick="followingFunc({{ $post->rel_to_user->id }})">
+                                            @if (App\Models\Following_Follower::where('follower', $post->rel_to_user->id)->where('following', Auth::guard('user')->user()->id)->first())
+                                                @lang('messages.following')
+                                            @else
+                                                @lang('messages.follow')
+                                            @endif
+                                        </span>
+                                    @else
+                                        <a href="{{ route('login') }}"><span> @lang('messages.follow')</span></a>
+                                    @endif
+                                </h4>
+                                <h6>{{ $post->created_at->diffForHumans() }}</h6>
+                            </div>
+                            <i class="fa-solid fa-xmark"></i>
+                        </div>
+                        <div class="post-content">
+                            {{ $post->content }}
+                        </div>
+                        <div class="post-img">
+                            <div class="row g-1">
+                                @php
+                                    $imageCount = $post->rel_to_post_images->count();
+                                @endphp
+                                @foreach ($post->rel_to_post_images as $post_image)
+                                    <div class="col-lg-{{ $imageCount == 1 ? '12' : '6' }}">
+                                        <img src="{{ asset('upload/posts') }}/{{ $post_image->image_path }}" alt="" />
+                                    </div>
+                                @endforeach
+
+                            </div>
+                        </div>
+                        <div class="post-actions">
+                            <div class="like-comment">
+                                <div>
+                                    @if (Auth::guard('user')->user())
+                                        @if (App\Models\Like::where('user_id', Auth::guard('user')->user()->id)->where('post_id', $post->id)->first())
+                                            <i class="fa-solid fa-thumbs-up commonLikeColor{{ $post->id }} like-active" onclick="liked({{ $post->id }}, {{ $post->rel_to_user->id }})"></i>
+                                        @else
+                                            <i class="fa-solid fa-thumbs-up commonLikeColor{{ $post->id }}" onclick="liked({{ $post->id }}, {{ $post->rel_to_user->id }})"></i>
+                                        @endif
+                                    @else
+                                        <a href="{{ route('login') }}"><i class="fa-solid fa-thumbs-up commonLikeColor"></i></a>
+                                    @endif
+
+
+                                    <span>Liked ({{ $post->rel_to_like_count->count() }})</span>
+                                </div>
+                                <div class="comment }}" id="comment" post-id="{{ $post->id }}">
+                                    <i class="fa-solid fa-comment"></i>
+                                    <span>Comments ({{ $post->rel_to_post_comments->count() + $post->rel_to_post_reply->count() + $post->rel_to_post_reply_20->count() + $post->rel_to_post_reply_30->count() }})</span>
+                                </div>
+                            </div>
+                            <div class="share">
+                                <i class="fa-solid fa-share" onclick="sharePost({{ $post->id }})"></i>
+                                <span>Share (23)</span>
+                            </div>
+                        </div>
+
+                        <div class="comment-container comment-container{{ $post->id }}">
+                            <div class="commetn-input-box">
+                                <form>
+                                    <textarea class="comment_text{{ $post->id }}" name="comment_text" placeholder="Write Comment...."></textarea>
+                                    @if (Auth::guard('user')->user())
+                                        <button type="button" onclick="sendComment({{ $post->id }}, {{ $post->rel_to_user->id }})">
+                                            <img src="{{ asset('assets/send.png') }}" alt="">
+                                        </button>
+                                    @else
+                                        <a href="{{ route('login') }}">
+                                            <button type="button" onclick="sendComment({{ $post->id }})">
+                                                <img src="{{ asset('assets/send.png') }}" alt="">
+                                            </button>
+                                        </a>
+                                    @endif
+                                </form>
+                            </div>
+                            <ul id="comments-list{{ $post->id }}" class="comments-list" >
+                                @foreach (App\Models\Comment::where('post_id', $post->id)->latest()->get() as $comment)
+                                    <li class="comment_item{{ $comment->id }}">
+                                        <div class="comment-main-level">
+                                            <div class="comment-avatar">
+                                                @if ($comment->rel_to_user->photo == null)
+                                                    <img id="blah" class="user-profile" src="{{ Avatar::create($comment->rel_to_user->fname.' '.$comment->rel_to_user->lname)->toBase64() }}" />
+                                                @else
+                                                    <img src="{{ asset('upload/users') }}/{{ $comment->rel_to_user->photo }}" alt="">
+                                                @endif
+
+                                            </div>
+                                            <div class="comment-box">
+                                                <div class="comment-head">
+                                                    <h6 class="comment-name">
+                                                        <a href="{{ route('user.profile', $comment->rel_to_user->id) }}">{{ $comment->rel_to_user->fname }} {{ $comment->rel_to_user->lname }}
+                                                        </a>
+                                                    </h6>
+                                                    <span>{{ $comment->created_at->diffForHumans() }}</span>
+                                                    <i class="fa fa-reply" onclick="sendReply({{ $post->id }},{{ $comment->id }}, {{ $comment->rel_to_user->id }})"></i>
+                                                    <i class="fa fa-heart"></i>
+                                                </div>
+                                                <div class="comment-content">
+                                                    {{ $comment->comment }}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <ul class="comments-list reply-list reply-list{{ $comment->id }}">
+                                            @foreach (App\Models\Reply::where('post_id', $post->id)->where('comment_id', $comment->id)->where('status', 10)->latest()->get() as $reply10)
+                                                <li id="reply_item{{ $reply10->id }}">
+                                                    <div class="comment-main-level">
+                                                        <!-- Avatar -->
+                                                        <div class="comment-avatar">
+                                                            @if ($reply10->rel_to_user->photo == null)
+                                                                <img id="blah" class="user-profile" src="{{ Avatar::create($reply10->rel_to_user->fname.' '.$reply10->rel_to_user->lname)->toBase64() }}" />
+                                                            @else
+                                                                <img src="{{ asset('upload/users') }}/{{ $reply10->rel_to_user->photo }}" alt="">
+                                                            @endif
+                                                        </div>
+                                                        <!-- Contenedor del Comentario -->
+                                                        <div class="comment-box">
+                                                            <div class="comment-head">
+                                                                <h6 class="comment-name by-author"><a href="{{ route('user.profile', $reply10->rel_to_user->id) }}">{{ $reply10->rel_to_user->fname }} {{ $reply10->rel_to_user->lname }}</a></h6>
+                                                                <span>{{ $reply10->created_at->diffForHumans() }}</span>
+                                                                <i class="fa fa-reply" onclick="sendReply20({{ $post->id }},{{ $comment->id }}, {{ $reply10->id }}, {{ $reply10->rel_to_user->id }})"></i>
+                                                                <i class="fa fa-heart"></i>
+                                                            </div>
+                                                            <div class="comment-content">
+                                                                {{ $reply10->reply }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <ul class="comments-list reply-list reply-list{{ $reply10->id }}">
+                                                        @foreach (App\Models\Reply_20::where('post_id', $post->id)->where('comment_id', $comment->id)->where('status', 20)->where('reply10', $reply10->id)->latest()->get() as $reply20)
+                                                            <li id="reply_item{{ $reply20->id }}">
+                                                                <div class="comment-main-level">
+                                                                    <!-- Avatar -->
+                                                                    <div class="comment-avatar">
+                                                                        @if ($reply20->rel_to_user->photo == null)
+                                                                            <img id="blah" class="user-profile" src="{{ Avatar::create($reply20->rel_to_user->fname.' '.$reply20->rel_to_user->lname)->toBase64() }}" />
+                                                                        @else
+                                                                            <img src="{{ asset('upload/users') }}/{{ $reply20->rel_to_user->photo }}" alt="">
+                                                                        @endif
+                                                                    </div>
+                                                                    <!-- Contenedor del Comentario -->
+                                                                    <div class="comment-box">
+                                                                        <div class="comment-head">
+                                                                            <h6 class="comment-name by-author"><a href="{{ route('user.profile', $reply20->rel_to_user->id) }}">{{ $reply20->rel_to_user->fname }} {{ $reply20->rel_to_user->lname }}</a></h6>
+                                                                            <span>{{ $reply20->created_at->diffForHumans() }}</span>
+                                                                            <i class="fa fa-reply" onclick="sendReply30({{ $post->id }},{{ $comment->id }}, {{ $reply20->id }}, {{ $reply10->id }}, {{ $reply20->rel_to_user->id }})"></i>
+                                                                            <i class="fa fa-heart"></i>
+                                                                        </div>
+                                                                        <div class="comment-content">
+                                                                            {{ $reply20->reply }}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <ul class="comments-list reply-list reply-list{{ $reply20->id }}">
+                                                                    @foreach (App\Models\Reply_30::where('post_id', $post->id)->where('comment_id', $comment->id)->where('status', 20)->where('reply10', $reply10->id)->where('reply20', $reply20->id)->latest()->get() as $reply30)
+                                                                        <li id="reply_item{{ $reply30->id }}">
+                                                                            <div class="comment-main-level">
+                                                                                <!-- Avatar -->
+                                                                                <div class="comment-avatar">
+                                                                                    @if ($reply30->rel_to_user->photo == null)
+                                                                                        <img id="blah" class="user-profile" src="{{ Avatar::create($reply30->rel_to_user->fname.' '.$reply30->rel_to_user->lname)->toBase64() }}" />
+                                                                                    @else
+                                                                                        <img src="{{ asset('upload/users') }}/{{ $reply30->rel_to_user->photo }}" alt="">
+                                                                                    @endif
+                                                                                </div>
+                                                                                <!-- Contenedor del Comentario -->
+                                                                                <div class="comment-box">
+                                                                                    <div class="comment-head">
+                                                                                        <h6 class="comment-name by-author"><a href="{{ route('user.profile', $reply30->rel_to_user->id) }}">{{ $reply30->rel_to_user->fname }} {{ $reply30->rel_to_user->lname }}</a></h6>
+                                                                                        <span>{{ $reply30->created_at->diffForHumans() }}</span>
+                                                                                        {{-- <i class="fa fa-reply"></i> --}}
+                                                                                        <i class="fa fa-heart"></i>
+                                                                                    </div>
+                                                                                    <div class="comment-content">
+                                                                                        {{ $reply30->reply }}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </li>
+                                                                    @endforeach
+                                                                </ul>
+                                                            </li>
+                                                        @endforeach
+                                                    </ul>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+@endsection
+
+
+@section('footer_script')
+    <script>
+        function sharePost(postID) {
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/post/share',
+                type: 'POST',
+                data: {
+                    post_id: postID,
+                    // post_user_id: post_user_id,
+                },
+                success: function(response) {
+                    console.log(response)
+                }
+            });
+        }
+    </script>
+
+    <script>
+        function liked(postID, post_user_id) {
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/user/post/like',
+                type: 'POST',
+                data: {
+                    post_id: postID,
+                    post_user_id: post_user_id,
+                },
+                success: function(response) {
+                    if(response == 'like') {
+                        $('.commonLikeColor'+postID).css('color', 'red')
+                    }else {
+                        $('.commonLikeColor'+postID).css('color', 'white')
+                    }
+                }
+            });
+        }
+    </script>
+
+    <script>
+       // Select all top-level <li> elements in the parent <ul>
+        const parentListItems = document.querySelectorAll('.comments-list > li');
+
+        parentListItems.forEach(item => {
+            // Check if the current <li> has a nested <ul>
+            const nestedUl = item.querySelector('ul');
+
+            if (!nestedUl) {
+                item.className = 'removeNullReplyBox'
+            }
+        });
+
+        function setAfterHeight(Ul) {
+            if (Ul.lastElementChild) { // Check if there is a last child
+                const child = Ul.lastElementChild;
+                const parentElement = child.parentElement.parentElement;
+
+                const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                parentElement.style.setProperty('--after-height', `${height}px`);
+            }
+        }
+
+        const commentListsUl = document.querySelectorAll('.comments-list li');
+        commentListsUl.forEach(Ul => {
+            setAfterHeight(Ul);
+        });
+
+        window.addEventListener('resize', () => {
+            function setAfterHeight(Ul) {
+                if (Ul.lastElementChild) { // Check if there is a last child
+                    const child = Ul.lastElementChild;
+                    const parentElement = child.parentElement.parentElement;
+
+                    const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                    parentElement.style.setProperty('--after-height', `${height}px`);
+                }
+            }
+
+            // Select all nested comments lists
+            const commentListsUl = document.querySelectorAll('.comments-list li ul');
+            commentListsUl.forEach(Ul => {
+                setAfterHeight(Ul);
+            });
+        })
+    </script>
+
+    <script>
+        $(".comment").click(function() {
+            var postId = $(this).attr('post-id');
+
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                type: 'POST',
+                url: '/update/comment/status',
+                data: {'post_id': postId},
+                success: function(data) {
+                    $('.comment-container'+postId).fadeToggle(500, 'swing');
+
+                    const parentListItems = document.querySelectorAll('.comments-list > li');
+                    parentListItems.forEach(item => {
+                        const nestedUl = item.querySelector('ul');
+                        if (!nestedUl) {
+                            item.className = 'removeNullReplyBox'
+                        }
+                    });
+                    function setAfterHeight(Ul) {
+                        if (Ul.lastElementChild) { // Check if there is a last child
+                            const child = Ul.lastElementChild;
+                            const parentElement = child.parentElement.parentElement;
+                            const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                            parentElement.style.setProperty('--after-height', `${height}px`);
+                        }
+                    }
+                    const commentListsUl = document.querySelectorAll('.comments-list li ul');
+                    commentListsUl.forEach(Ul => {
+                        setAfterHeight(Ul);
+                    });
+                }
+            })
+        });
+    </script>
+
+    <script>
+        function sendComment(postId, postUserId) {
+            const commentText = $('.comment_text'+postId).val();
+
+            if(commentText.trim() === "") {
+                Toastify({
+                    text: "Please, write something",
+                    duration: 5000,
+                    gravity: "top",
+                    position: "center",
+                    backgroundColor: "pink",
+                    stopOnFocus: true,
+                }).showToast();
+                return
+            }
+
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/user/comment/store',
+                type: 'POST',
+                data: {
+                    post_id: postId,
+                    post_user_id: postUserId,
+                    comment_text: commentText,
+                },
+                success: function(response) {
+                    let comment = `
+                        @if (Auth::guard('user')->user())
+                            <li>
+                                <div class="comment-main-level">
+                                    <div class="comment-avatar">
+                                        @if (Auth::guard('user')->user()->photo == null)
+                                            <img id="blah" class="user-profile" src="{{ Avatar::create(Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname)->toBase64() }}" />
+                                        @else
+                                            <img id="blah" class="user-profile" src="{{ asset('upload/users') }}/{{ Auth::guard('user')->user()->photo }}" alt="" />
+                                        @endif
+                                    </div>
+                                    <div class="comment-box">
+                                        <div class="comment-head">
+                                            <h6 class="comment-name"><a href="#">{{ Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname }}</a></h6>
+                                            <span>now</span>
+                                            <i class="fa fa-reply"></i>
+                                            <i class="fa fa-heart"></i>
+                                        </div>
+                                        <div class="comment-content">
+                                            ${response}
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        @endif`
+
+                    $('.comment_text'+postId).val('');
+                    $('#comments-list'+postId).prepend(comment);
+                },
+            });
+        }
+    </script>
+
+    <script>
+        function sendReply(post_id, comment_id, post_user_id) {
+            const commentDiv = $(".comment_item" + comment_id + " > div")
+
+            if (commentDiv.next('.reply-input-box').length === 0) {
+                const replyDiv = `
+                    <div class="reply-input-box">
+                        <form>
+                            <textarea class="comment_text reply_text${comment_id}" name="reply_text" placeholder="Reply...."></textarea>
+                            @if (Auth::guard('user')->user())
+                                <button type="button" onclick="sendReplyStore(${post_id}, ${comment_id}, ${post_user_id})">
+                                    <img src="/assets/send.png" alt="">
+                                </button>
+                            @else
+                                <a href="{{ route('login') }}">
+                                    <button type="button">
+                                        <img src="/assets/send.png" alt="">
+                                    </button>
+                                </a>
+                            @endif
+                        </form>
+                    </div>`;
+
+                commentDiv.after(replyDiv);
+            } else {
+                commentDiv.next('.reply-input-box').remove();
+            }
+
+            const parentListItems = document.querySelectorAll('.comments-list > li');
+            parentListItems.forEach(item => {
+                const nestedUl = item.querySelector('ul');
+                if (!nestedUl) {
+                    item.className = 'removeNullReplyBox'
+                }
+            });
+            function setAfterHeight(Ul) {
+                if (Ul.lastElementChild) { // Check if there is a last child
+                    const child = Ul.lastElementChild;
+                    const parentElement = child.parentElement.parentElement;
+                    const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                    parentElement.style.setProperty('--after-height', `${height}px`);
+                }
+            }
+            const commentListsUl = document.querySelectorAll('.comments-list li ul');
+            commentListsUl.forEach(Ul => {
+                setAfterHeight(Ul);
+            });
+        }
+    </script>
+
+    <script>
+        function sendReplyStore(post_id, comment_id, post_user_id) {
+            const replyText = $('.reply_text'+comment_id).val();
+
+            if(replyText.trim() === "") {
+                Toastify({
+                    text: "Please, reply something",
+                    duration: 5000,
+                    gravity: "top",
+                    position: "center",
+                    backgroundColor: "pink",
+                    stopOnFocus: true,
+                }).showToast();
+                return
+            }
+
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/user/reply/store',
+                type: 'POST',
+                data: {
+                    post_id: post_id,
+                    comment_id: comment_id,
+                    post_user_id: post_user_id,
+                    reply_text: replyText,
+                },
+                success: function(response) {
+                    const replyNow = `
+                    @if (Auth::guard('user')->user())
+                        <li>
+                            <div class="comment-main-level">
+                                <!-- Avatar -->
+                                <div class="comment-avatar">
+                                    @if (Auth::guard('user')->user()->photo == null)
+                                        <img id="blah" class="user-profile" src="{{ Avatar::create(Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname)->toBase64() }}" />
+                                    @else
+                                        <img id="blah" class="user-profile" src="{{ asset('upload/users') }}/{{ Auth::guard('user')->user()->photo }}" alt="" />
+                                    @endif
+                                </div>
+                                <!-- Contenedor del Comentario -->
+                                <div class="comment-box">
+                                    <div class="comment-head">
+                                        <h6 class="comment-name"><a href="#">{{ Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname }}</a></h6>
+                                        <span>now</span>
+                                        <i class="fa fa-reply"></i>
+                                        <i class="fa fa-heart"></i>
+                                    </div>
+                                    <div class="comment-content">
+                                        ${response}
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    @endif
+                    `
+                    $('.reply_text'+comment_id).val('')
+                    $('.reply-list'+comment_id).prepend(replyNow);
+
+                    const parentListItems = document.querySelectorAll('.comments-list > li');
+                    parentListItems.forEach(item => {
+                        const nestedUl = item.querySelector('ul');
+                        if (!nestedUl) {
+                            item.className = 'removeNullReplyBox'
+                        }
+                    });
+                    function setAfterHeight(Ul) {
+                        if (Ul.lastElementChild) { // Check if there is a last child
+                            const child = Ul.lastElementChild;
+                            const parentElement = child.parentElement.parentElement;
+                            const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                            parentElement.style.setProperty('--after-height', `${height}px`);
+                        }
+                    }
+                    const commentListsUl = document.querySelectorAll('.comments-list li ul');
+                    commentListsUl.forEach(Ul => {
+                        setAfterHeight(Ul);
+                    });
+                },
+            });
+        }
+    </script>
+
+    <script>
+        function sendReply20(post_id, comment_id, reply10_id, post_user_id) {
+            const replyItemList = $("#reply_item"+reply10_id+" > div");
+
+            if (replyItemList.next('.reply-input-box').length === 0) {
+                const replyInputBox = `
+                    <div class="reply-input-box">
+                        <form>
+                            <textarea class="comment_text reply_text${reply10_id}" name="reply_text" placeholder="Reply...."></textarea>
+                            @if (Auth::guard('user')->user())
+                                <button type="button" onclick="sendReply20Store(${post_id}, ${comment_id}, ${reply10_id}, ${post_user_id})">
+                                    <img src="/assets/send.png" alt="">
+                                </button>
+                            @else
+                                <a href="{{ route('login') }}">
+                                    <button type="button">
+                                        <img src="/assets/send.png" alt="">
+                                    </button>
+                                </a>
+                            @endif
+                        </form>
+                    </div>`;
+
+                replyItemList.after(replyInputBox);
+            } else {
+                replyItemList.next('.reply-input-box').remove();
+            }
+
+            const parentListItems = document.querySelectorAll('.comments-list > li');
+            parentListItems.forEach(item => {
+                const nestedUl = item.querySelector('ul');
+                if (!nestedUl) {
+                    item.className = 'removeNullReplyBox'
+                }
+            });
+            function setAfterHeight(Ul) {
+                if (Ul.lastElementChild) { // Check if there is a last child
+                    const child = Ul.lastElementChild;
+                    const parentElement = child.parentElement.parentElement;
+                    const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                    parentElement.style.setProperty('--after-height', `${height}px`);
+                }
+            }
+            const commentListsUl = document.querySelectorAll('.comments-list li ul');
+            commentListsUl.forEach(Ul => {
+                setAfterHeight(Ul);
+            });
+        }
+
+        function sendReply20Store(post_id, comment_id, reply10_id, post_user_id) {
+            const reply20Text = $('.reply_text'+reply10_id).val();
+
+            if(reply20Text.trim() === "") {
+                Toastify({
+                    text: "Please, reply something",
+                    duration: 5000,
+                    gravity: "top",
+                    position: "center",
+                    backgroundColor: "pink",
+                    stopOnFocus: true,
+                }).showToast();
+                return
+            }
+
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/user/reply/store',
+                type: 'POST',
+                data: {
+                    post_id: post_id,
+                    comment_id: comment_id,
+                    reply10_id: reply10_id,
+                    post_user_id: post_user_id,
+                    value: 10,
+                    reply_text: reply20Text,
+                },
+                success: function(response) {
+                    const replyNow = `
+                    @if (Auth::guard('user')->user())
+                        <li>
+                            <div class="comment-main-level">
+                                <!-- Avatar -->
+                                <div class="comment-avatar">
+                                    @if (Auth::guard('user')->user()->photo == null)
+                                        <img id="blah" class="user-profile" src="{{ Avatar::create(Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname)->toBase64() }}" />
+                                    @else
+                                        <img id="blah" class="user-profile" src="{{ asset('upload/users') }}/{{ Auth::guard('user')->user()->photo }}" alt="" />
+                                    @endif
+                                </div>
+                                <!-- Contenedor del Comentario -->
+                                <div class="comment-box">
+                                    <div class="comment-head">
+                                        <h6 class="comment-name"><a href="#">{{ Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname }}</a></h6>
+                                        <span>now</span>
+                                        <i class="fa fa-reply"></i>
+                                        <i class="fa fa-heart"></i>
+                                    </div>
+                                    <div class="comment-content">
+                                        ${response}
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    @endif
+                    `
+                    $('.reply_text'+reply10_id).val('')
+                    $('.reply-list'+reply10_id).prepend(replyNow);
+
+                    const parentListItems = document.querySelectorAll('.comments-list > li');
+                    parentListItems.forEach(item => {
+                        const nestedUl = item.querySelector('ul');
+                        if (!nestedUl) {
+                            item.className = 'removeNullReplyBox'
+                        }
+                    });
+                    function setAfterHeight(Ul) {
+                        if (Ul.lastElementChild) { // Check if there is a last child
+                            const child = Ul.lastElementChild;
+                            const parentElement = child.parentElement.parentElement;
+                            const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                            parentElement.style.setProperty('--after-height', `${height}px`);
+                        }
+                    }
+                    const commentListsUl = document.querySelectorAll('.comments-list li ul');
+                    commentListsUl.forEach(Ul => {
+                        setAfterHeight(Ul);
+                    });
+                },
+            });
+        }
+    </script>
+
+    <script>
+        function sendReply30(post_id, comment_id, reply20_id, reply10_id, post_user_id) {
+            const reply30ItemList = $("#reply_item"+reply20_id+" > div");
+
+            if (reply30ItemList.next('.reply-input-box').length === 0) {
+                const replyInputBox = `
+                    <div class="reply-input-box">
+                        <form>
+                            <textarea class="comment_text reply_text${reply20_id}" name="reply_text" placeholder="Reply...."></textarea>
+                            @if (Auth::guard('user')->user())
+                                <button type="button" onclick="sendReply30Store(${post_id}, ${comment_id}, ${reply20_id}, ${reply10_id}, ${post_user_id})">
+                                    <img src="/assets/send.png" alt="">
+                                </button>
+                            @else
+                                <a href="{{ route('login') }}">
+                                    <button type="button">
+                                        <img src="/assets/send.png" alt="">
+                                    </button>
+                                </a>
+                            @endif
+                        </form>
+                    </div>`;
+
+                reply30ItemList.after(replyInputBox);
+            } else {
+                reply30ItemList.next('.reply-input-box').remove();
+            }
+
+            const parentListItems = document.querySelectorAll('.comments-list > li');
+            parentListItems.forEach(item => {
+                const nestedUl = item.querySelector('ul');
+                if (!nestedUl) {
+                    item.className = 'removeNullReplyBox'
+                }
+            });
+            function setAfterHeight(Ul) {
+                if (Ul.lastElementChild) { // Check if there is a last child
+                    const child = Ul.lastElementChild;
+                    const parentElement = child.parentElement.parentElement;
+                    const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                    parentElement.style.setProperty('--after-height', `${height}px`);
+                }
+            }
+            const commentListsUl = document.querySelectorAll('.comments-list li ul');
+            commentListsUl.forEach(Ul => {
+                setAfterHeight(Ul);
+            });
+        }
+
+        function sendReply30Store(post_id, comment_id, reply20_id, reply10_id, post_user_id) {
+            const reply30Text = $('.reply_text'+reply20_id).val();
+            console.log(reply30Text, post_id, comment_id, reply20_id)
+            if(reply30Text.trim() === "") {
+                Toastify({
+                    text: "Please, reply something",
+                    duration: 5000,
+                    gravity: "top",
+                    position: "center",
+                    backgroundColor: "pink",
+                    stopOnFocus: true,
+                }).showToast();
+                return
+            }
+
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/user/reply/store',
+                type: 'POST',
+                data: {
+                    post_id: post_id,
+                    comment_id: comment_id,
+                    reply10_id: reply10_id,
+                    post_user_id: post_user_id,
+                    value: 20,
+                    reply20_id: reply20_id,
+                    reply_text: reply30Text,
+                },
+                success: function(response) {
+                    const replyNow = `
+                    @if (Auth::guard('user')->user())
+                        <li>
+                            <div class="comment-main-level">
+                                <!-- Avatar -->
+                                <div class="comment-avatar">
+                                    @if (Auth::guard('user')->user()->photo == null)
+                                        <img id="blah" class="user-profile" src="{{ Avatar::create(Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname)->toBase64() }}" />
+                                    @else
+                                        <img id="blah" class="user-profile" src="{{ asset('upload/users') }}/{{ Auth::guard('user')->user()->photo }}" alt="" />
+                                    @endif
+                                </div>
+                                <!-- Contenedor del Comentario -->
+                                <div class="comment-box">
+                                    <div class="comment-head">
+                                        <h6 class="comment-name"><a href="#">{{ Auth::guard('user')->user()->fname.' '.Auth::guard('user')->user()->lname }}</a></h6>
+                                        <span>now</span>
+                                        <i class="fa fa-heart"></i>
+                                    </div>
+                                    <div class="comment-content">
+                                        ${response}
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    @endif
+                    `
+                    $('.reply_text'+reply20_id).val('')
+                    $('.reply-list'+reply20_id).prepend(replyNow);
+
+                    const parentListItems = document.querySelectorAll('.comments-list > li');
+                    parentListItems.forEach(item => {
+                        const nestedUl = item.querySelector('ul');
+                        if (!nestedUl) {
+                            item.className = 'removeNullReplyBox'
+                        }
+                    });
+                    function setAfterHeight(Ul) {
+                        if (Ul.lastElementChild) { // Check if there is a last child
+                            const child = Ul.lastElementChild;
+                            const parentElement = child.parentElement.parentElement;
+                            const height = parentElement.offsetHeight - child.offsetHeight - 15;
+                            parentElement.style.setProperty('--after-height', `${height}px`);
+                        }
+                    }
+                    const commentListsUl = document.querySelectorAll('.comments-list li ul');
+                    commentListsUl.forEach(Ul => {
+                        setAfterHeight(Ul);
+                    });
+                },
+            });
+        }
+    </script>
+
+    <script>
+        function followingFunc(user_id) {
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+            $.ajax({
+                url: '/user/following',
+                type: 'POST',
+                data: {
+                    user_id: user_id,
+                },
+                success: function(response) {
+                    if(response == 'following') {
+                        $('.commonFollowFollowingStatus'+user_id).text('Following');
+                    }else {
+                        $('.commonFollowFollowingStatus'+user_id).text('Follow');
+                    }
+                }
+            });
+        }
+    </script>
+@endsection
